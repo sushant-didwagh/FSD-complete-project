@@ -157,10 +157,16 @@ Session : Session 1
 | Toast notifications (react-hot-toast) | ⏳ Pending | |
 | Empty state messages | ⏳ Pending | |
 | Mobile responsiveness check | ⏳ Pending | |
-| CORS setup for production | ⏳ Pending | |
-| Deploy backend (Render / Railway) | ⏳ Pending | |
+| CORS setup for production | ✅ Done | Handled via CLIENT_URL env var in Docker |
+| `server/Dockerfile` (multi-stage, alpine, non-root) | ✅ Done | Production-ready |
+| `server/.dockerignore` | ✅ Done | Secrets & node_modules excluded |
+| `docker-compose.yml` (backend + MongoDB) | ✅ Done | Health checks, named volumes |
+| `docker-compose.prod.yml` (production overrides) | ✅ Done | Closed Mongo port, log rotation |
+| `.env.docker.example` (Docker secret template) | ✅ Done | |
+| Root `.gitignore` (protect `.env.docker`) | ✅ Done | |
+| Deploy backend (Render / Railway) | ⏳ Pending | Use docker-compose.prod.yml on VPS |
 | Deploy frontend (Vercel) | ⏳ Pending | |
-| Update `.env` for production URLs | ⏳ Pending | |
+| Update `.env` for production URLs | ⏳ Pending | Use `.env.docker` on server |
 
 ---
 

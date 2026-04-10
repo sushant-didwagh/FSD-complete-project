@@ -1,0 +1,36 @@
+# ─────────────────────────────────────────────────
+# .dockerignore — Student Buddy Backend
+# ─────────────────────────────────────────────────
+
+# Dependencies (will be installed fresh inside container)
+node_modules/
+
+# Environment secrets (NEVER bake secrets into image)
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+logs/
+
+# Git
+.git/
+.gitignore
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor config
+.vscode/
+.idea/
+
+# Test files
+*.test.js
+*.spec.js
+__tests__/
+
+# Temp files
+tmp/
+temp/

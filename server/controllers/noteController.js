@@ -184,26 +184,52 @@ const viewNote = asyncHandler(async (req, res) => {
     throw new Error('Note not found');
   }
 
-  const fileUrl = note.pdfFile;
+  // Build an authenticated Cloudinary URL using API credentials
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
-  // Stream the file through our server using fetch API (supports redirects organically)
-  try {
-    const response = await fetch(fileUrl);
-    if (!response.ok) {
-      return res.status(502).json({ success: false, message: 'Could not fetch file from storage' });
+  // Extract the path from the stored URL (everything after /raw/upload/)
+  let filePath = '';
+  if (note.pdfFile) {
+    const match = note.pdfFile.match(/\/raw\/upload\/(.+)$/);
+    if (match) {
+      filePath = match[1];
+    }
+  }
+
+  // Use authenticated URL: https://api_key:api_secret@res.cloudinary.com/...
+  const authUrl = `https://${apiKey}:${apiSecret}@res.cloudinary.com/${cloudName}/raw/upload/${filePath}`;
+  console.log('🔍 DEBUG viewNote authUrl (redacted):', `https://***:***@res.cloudinary.com/${cloudName}/raw/upload/${filePath}`);
+
+  https.get(authUrl, (fileRes) => {
+    // Follow redirects
+    if ([301, 302, 303, 307].includes(fileRes.statusCode)) {
+      const redirectUrl = fileRes.headers.location;
+      console.log('🔍 DEBUG redirect to:', redirectUrl);
+      https.get(redirectUrl, (redirectRes) => {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${note.originalFileName || 'note.pdf'}"`);
+        redirectRes.pipe(res);
+      }).on('error', (err) => {
+        console.error('Redirect error:', err.message);
+        if (!res.headersSent) res.status(500).json({ success: false, message: 'Failed to stream file' });
+      });
+      return;
     }
 
-    const isPdf = note.originalFileName?.toLowerCase().endsWith('.pdf') || true;
-    res.setHeader('Content-Type', isPdf ? 'application/pdf' : 'application/octet-stream');
-    res.setHeader('Content-Disposition', `inline; filename="${note.originalFileName || 'note.pdf'}"`);
+    if (fileRes.statusCode !== 200) {
+      console.error('🔍 DEBUG Cloudinary status:', fileRes.statusCode);
+      return res.status(502).json({ success: false, message: `Could not fetch file (status ${fileRes.statusCode})` });
+    }
 
-    const { Readable } = require('stream');
-    Readable.fromWeb(response.body).pipe(res);
-  } catch (err) {
-    console.error('Proxy stream error:', err);
-    res.status(500);
-    throw new Error('Failed to stream file');
-  }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${note.originalFileName || 'note.pdf'}"`);
+    fileRes.pipe(res);
+  }).on('error', (err) => {
+    console.error('Proxy error:', err.message);
+    if (!res.headersSent) res.status(500).json({ success: false, message: 'Failed to stream file' });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

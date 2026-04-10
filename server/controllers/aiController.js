@@ -1,5 +1,5 @@
 const asyncHandler = require('express-async-handler');
-const openai = require('../config/openai');
+const genAI = require('../config/openai'); // Still points to config/openai.js (now uses Gemini inside)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // @desc    Ask AI a study-related question
@@ -14,36 +14,37 @@ const askAI = asyncHandler(async (req, res) => {
     throw new Error('Question is required');
   }
 
-  // Build messages array for OpenAI
-  const systemMessage = {
-    role: 'system',
-    content: `You are Student Buddy AI — a helpful, friendly academic assistant for students.
+  // System instruction for Gemini
+  const systemInstruction = `You are Student Buddy AI — a helpful, friendly academic assistant for students.
 You help students understand concepts, solve problems, explain topics clearly, and guide their learning.
 Keep answers concise but thorough. Use examples where helpful. Format code/math using markdown.
-Only answer study-related questions. If asked something off-topic, politely redirect to academics.`,
-  };
+Only answer study-related questions. If asked something off-topic, politely redirect to academics.`;
 
-  // Include last 10 messages of history for context
-  const contextMessages = history.slice(-10).map((m) => ({
-    role: m.role,
-    content: m.content,
-  }));
-
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-3.5-turbo',
-    messages: [systemMessage, ...contextMessages, { role: 'user', content: question.trim() }],
-    max_tokens: 1000,
-    temperature: 0.7,
+  // Get Gemini 1.5 Flash model (free tier, fast)
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-1.5-flash',
+    systemInstruction,
   });
 
-  const answer = completion.choices[0].message.content;
+  // Build chat history in Gemini format (role: 'user' | 'model')
+  const chatHistory = history.slice(-10).map((m) => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
+
+  // Start a chat session with history
+  const chat = model.startChat({ history: chatHistory });
+
+  // Send the new question
+  const result = await chat.sendMessage(question.trim());
+  const answer = result.response.text();
 
   res.status(200).json({
     success: true,
     data: {
       question: question.trim(),
       answer,
-      model: completion.model,
+      model: 'gemini-1.5-flash',
     },
   });
 });

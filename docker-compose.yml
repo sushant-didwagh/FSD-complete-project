@@ -1,0 +1,91 @@
+# ═══════════════════════════════════════════════════════════════
+# Student Buddy — Docker Compose (Dev + Production)
+# ═══════════════════════════════════════════════════════════════
+#
+# USAGE:
+#   Development : docker compose up --build
+#   Production  : docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#   Stop        : docker compose down
+#   Wipe data   : docker compose down -v   (⚠️ deletes MongoDB data)
+#   View logs   : docker compose logs -f backend
+#   Seed admin  : docker compose exec backend node scripts/seedAdmin.js
+#
+# ═══════════════════════════════════════════════════════════════
+
+services:
+
+  # ── MongoDB ──────────────────────────────────────────────────
+  mongo:
+    image: mongo:7
+    container_name: student_buddy_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme123}
+      MONGO_INITDB_DATABASE: student_buddy
+    volumes:
+      - mongo_data:/data/db              # Persist data across restarts
+      - mongo_config:/data/configdb      # Persist config
+    ports:
+      - "27017:27017"                    # Expose for local tools (Compass etc.)
+    networks:
+      - student_buddy_net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # ── Backend (Node.js / Express) ───────────────────────────────
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: production
+    container_name: student_buddy_backend
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy   # Wait until MongoDB is ready
+    env_file:
+      - .env.docker                  # Load secrets from this file (gitignored)
+    environment:
+      # Override MONGO_URI to use internal Docker DNS (service name = "mongo")
+      MONGO_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-changeme123}@mongo:27017/student_buddy?authSource=admin
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 5000
+    ports:
+      - "5000:5000"
+    networks:
+      - student_buddy_net
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    volumes:
+      # Named volume for uploaded temp files (if any local uploads)
+      - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# ── Named Volumes ─────────────────────────────────────────────
+volumes:
+  mongo_data:
+    driver: local
+    name: student_buddy_mongo_data
+  mongo_config:
+    driver: local
+    name: student_buddy_mongo_config
+  uploads:
+    driver: local
+    name: student_buddy_uploads
+
+# ── Network ───────────────────────────────────────────────────
+networks:
+  student_buddy_net:
+    driver: bridge
+    name: student_buddy_network

@@ -10,10 +10,9 @@ const NoteCard = ({ note, onDownload, canDownload }) => {
 
   const token = localStorage.getItem('token');
 
-  // Open the file via our backend proxy (bypasses Cloudinary auth)
+  // Open the file via backend proxy
   const handleView = () => {
     const url = `${API_BASE}/api/notes/${_id}/view`;
-    // Open with token in a new tab using fetch approach
     fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
     })

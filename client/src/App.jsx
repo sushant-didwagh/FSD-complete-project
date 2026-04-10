@@ -7,7 +7,10 @@ import PrivateRoute from './routes/PrivateRoute';
 
 // Public pages
 import Landing from './pages/Landing';
-import Login from './pages/Login';
+import LoginSelect from './pages/LoginSelect';
+import LoginStudent from './pages/LoginStudent';
+import LoginMentor from './pages/LoginMentor';
+import LoginAdmin from './pages/LoginAdmin';
 import RegisterStudent from './pages/RegisterStudent';
 import RegisterMentor from './pages/RegisterMentor';
 
@@ -56,7 +59,10 @@ function App() {
         <Routes>
           {/* Public */}
           <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={<LoginSelect />} />
+          <Route path="/login/student" element={<LoginStudent />} />
+          <Route path="/login/mentor" element={<LoginMentor />} />
+          <Route path="/login/admin" element={<LoginAdmin />} />
           <Route path="/register/student" element={<RegisterStudent />} />
           <Route path="/register/mentor" element={<RegisterMentor />} />
 

@@ -1,0 +1,16 @@
+# ─────────────────────────────────────
+# Student Buddy — Root .gitignore
+# ─────────────────────────────────────
+
+# Docker environment secrets (NEVER commit)
+.env.docker
+.env.docker.local
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+.env

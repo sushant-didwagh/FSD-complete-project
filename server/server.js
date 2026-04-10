@@ -6,6 +6,7 @@ const cors = require('cors');
 
 const connectDB = require('./config/db');
 require('./config/cloudinary'); // Initialize Cloudinary
+console.log('🔍 DEBUG Cloudinary cloud_name:', process.env.CLOUDINARY_CLOUD_NAME);
 
 const authRoutes = require('./routes/authRoutes');
 const noteRoutes = require('./routes/noteRoutes');

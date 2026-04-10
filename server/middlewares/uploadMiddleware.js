@@ -9,6 +9,7 @@ const pdfStorage = new CloudinaryStorage({
     folder: 'student_buddy/notes',
     resource_type: 'raw',         // PDFs must use 'raw'
     format: 'pdf',
+    access_mode: 'public',        // Make raw files publicly accessible
     public_id: `note_${Date.now()}_${file.originalname.replace(/\s+/g, '_')}`,
   }),
 });
