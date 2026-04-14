@@ -172,7 +172,41 @@ const canDownload = asyncHandler(async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// @desc    View/Stream a note PDF (proxy through backend to avoid Cloudinary 401)
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper to build a proper Cloudinary URL (with attachment flag if needed)
+// ─────────────────────────────────────────────────────────────────────────────
+const getCloudinaryUrl = (note, isAttachment = false) => {
+  let publicId = note.publicId;
+
+  // Fallback to extract public_id from the pdfFile URL if not clearly defined
+  if (!publicId && note.pdfFile) {
+    const match = note.pdfFile.match(/\/raw\/upload\/(?:v\d+\/)?(.+)$/);
+    if (match) publicId = match[1];
+  }
+
+  if (!publicId) {
+    return note.pdfFile; // Return raw string if we can't extract ID
+  }
+
+  // Use Cloudinary SDK to generate a safe, signed URL
+  const options = {
+    resource_type: 'raw',
+    type: 'upload',
+    secure: true,
+  };
+
+  if (isAttachment) {
+    options.flags = `attachment:${note.originalFileName ? note.originalFileName.replace(/\.pdf$/, '') : 'note'}`;
+  }
+
+  // We only sign it if Strict Deliveries is turned on, but signing it is always safe.
+  options.sign_url = true;
+
+  return cloudinary.url(publicId, options);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Get secure view URL for a note PDF
 // @route   GET /api/notes/:id/view
 // @access  Private
 // ─────────────────────────────────────────────────────────────────────────────
@@ -184,56 +218,12 @@ const viewNote = asyncHandler(async (req, res) => {
     throw new Error('Note not found');
   }
 
-  // Build an authenticated Cloudinary URL using API credentials
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
-
-  // Extract the path from the stored URL (everything after /raw/upload/)
-  let filePath = '';
-  if (note.pdfFile) {
-    const match = note.pdfFile.match(/\/raw\/upload\/(.+)$/);
-    if (match) {
-      filePath = match[1];
-    }
-  }
-
-  // Use authenticated URL: https://api_key:api_secret@res.cloudinary.com/...
-  const authUrl = `https://${apiKey}:${apiSecret}@res.cloudinary.com/${cloudName}/raw/upload/${filePath}`;
-  console.log('🔍 DEBUG viewNote authUrl (redacted):', `https://***:***@res.cloudinary.com/${cloudName}/raw/upload/${filePath}`);
-
-  https.get(authUrl, (fileRes) => {
-    // Follow redirects
-    if ([301, 302, 303, 307].includes(fileRes.statusCode)) {
-      const redirectUrl = fileRes.headers.location;
-      console.log('🔍 DEBUG redirect to:', redirectUrl);
-      https.get(redirectUrl, (redirectRes) => {
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `inline; filename="${note.originalFileName || 'note.pdf'}"`);
-        redirectRes.pipe(res);
-      }).on('error', (err) => {
-        console.error('Redirect error:', err.message);
-        if (!res.headersSent) res.status(500).json({ success: false, message: 'Failed to stream file' });
-      });
-      return;
-    }
-
-    if (fileRes.statusCode !== 200) {
-      console.error('🔍 DEBUG Cloudinary status:', fileRes.statusCode);
-      return res.status(502).json({ success: false, message: `Could not fetch file (status ${fileRes.statusCode})` });
-    }
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${note.originalFileName || 'note.pdf'}"`);
-    fileRes.pipe(res);
-  }).on('error', (err) => {
-    console.error('Proxy error:', err.message);
-    if (!res.headersSent) res.status(500).json({ success: false, message: 'Failed to stream file' });
-  });
+  const url = getCloudinaryUrl(note, false);
+  res.status(200).json({ success: true, url });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// @desc    Download a note PDF (check 50MB rule, then proxy)
+// @desc    Get secure download URL for a note PDF
 // @route   GET /api/notes/:id/download
 // @access  Private
 // ─────────────────────────────────────────────────────────────────────────────
@@ -257,26 +247,8 @@ const downloadNote = asyncHandler(async (req, res) => {
     );
   }
 
-  const fileUrl = note.pdfFile;
-
-  // Stream the file with download headers
-  try {
-    const response = await fetch(fileUrl);
-    if (!response.ok) {
-      return res.status(502).json({ success: false, message: 'Could not fetch file from storage' });
-    }
-
-    const isPdf = note.originalFileName?.toLowerCase().endsWith('.pdf') || true;
-    res.setHeader('Content-Type', isPdf ? 'application/pdf' : 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${note.originalFileName || `${note.title}.pdf`}"`);
-
-    const { Readable } = require('stream');
-    Readable.fromWeb(response.body).pipe(res);
-  } catch (err) {
-    console.error('Download proxy stream error:', err);
-    res.status(500);
-    throw new Error('Failed to download file');
-  }
+  const url = getCloudinaryUrl(note, true);
+  res.status(200).json({ success: true, url });
 });
 
 module.exports = { uploadNote, getAllNotes, getNoteById, getMyNotes, deleteNote, canDownload, viewNote, downloadNote };

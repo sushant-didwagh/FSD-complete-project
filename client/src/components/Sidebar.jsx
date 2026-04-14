@@ -7,7 +7,7 @@ const studentLinks = [
   { to: '/student/dashboard', icon: '🏠', label: 'Dashboard' },
   { to: '/student/notes', icon: '📚', label: 'My Notes' },
   { to: '/student/mentor', icon: '👨‍🏫', label: 'My Mentor' },
-  { to: '/student/ask-ai', icon: '🤖', label: 'Ask AI' },
+  { to: 'https://aak007-studentchatbot.hf.space/', icon: '🤖', label: 'Ask AI', external: true },
 ];
 
 const mentorLinks = [
@@ -43,14 +43,27 @@ const Sidebar = () => {
       {/* Nav Links */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         {links.map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
-          >
-            <span style={{ fontSize: '1.1rem' }}>{link.icon}</span>
-            {link.label}
-          </NavLink>
+          link.external ? (
+            <a
+              key={link.to}
+              href={link.to}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="sidebar-link"
+            >
+              <span style={{ fontSize: '1.1rem' }}>{link.icon}</span>
+              {link.label}
+            </a>
+          ) : (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
+            >
+              <span style={{ fontSize: '1.1rem' }}>{link.icon}</span>
+              {link.label}
+            </NavLink>
+          )
         ))}
       </div>
 

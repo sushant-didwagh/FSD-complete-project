@@ -10,7 +10,7 @@ const NoteCard = ({ note, onDownload, canDownload }) => {
 
   const token = localStorage.getItem('token');
 
-  // Open the file via backend proxy
+  // Open the file by fetching signed URL
   const handleView = () => {
     const url = `${API_BASE}/api/notes/${_id}/view`;
     fetch(url, {
@@ -18,13 +18,19 @@ const NoteCard = ({ note, onDownload, canDownload }) => {
     })
       .then((res) => {
         if (!res.ok) throw new Error('Cannot open file');
-        return res.blob();
+        return res.json();
       })
-      .then((blob) => {
-        const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, '_blank');
+      .then((data) => {
+        if (data.url) {
+          window.open(data.url, '_blank');
+        } else {
+          throw new Error('Invalid URL');
+        }
       })
-      .catch(() => alert('Failed to open file. Please try again.'));
+      .catch((err) => {
+        console.error('View Error:', err);
+        alert('Failed to open file. Please try again.');
+      });
   };
 
   const handleDownload = () => {
@@ -38,19 +44,20 @@ const NoteCard = ({ note, onDownload, canDownload }) => {
     })
       .then((res) => {
         if (!res.ok) return res.json().then((d) => { throw new Error(d.message || 'Download failed'); });
-        return res.blob();
+        return res.json();
       })
-      .then((blob) => {
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = originalFileName || `${title}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
+      .then((data) => {
+        if (data.url) {
+          // Open download URL (Cloudinary will append fl_attachment to force download)
+          window.location.href = data.url;
+        } else {
+          throw new Error('Invalid Download URL');
+        }
       })
-      .catch((err) => alert(err.message || 'Download failed. Please try again.'));
+      .catch((err) => {
+        console.error('Download Error:', err);
+        alert(err.message || 'Download failed. Please try again.');
+      });
   };
 
   return (
