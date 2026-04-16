@@ -24,7 +24,7 @@ const ChatPage = () => {
     if (!user?._id || !userId) return;
 
     // Connect socket
-    socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
+    socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5005', {
       auth: { token: localStorage.getItem('token') },
     });
 

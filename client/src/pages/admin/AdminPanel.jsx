@@ -4,7 +4,7 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import axiosInstance from '../../utils/axiosInstance';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5005';
 
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState('pending'); // pending, students, mentors
